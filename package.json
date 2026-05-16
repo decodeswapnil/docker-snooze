@@ -1,0 +1,36 @@
+{
+  "name": "docker-snooze",
+  "version": "1.0.0",
+  "description": "Schedule, snooze, and wake Docker Compose projects from a web dashboard — with cron schedules, missed-schedule catch-up, and TOTP 2FA.",
+  "main": "server.js",
+  "license": "MIT",
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "docker",
+    "docker-compose",
+    "scheduler",
+    "cron",
+    "containers",
+    "resource-management",
+    "totp",
+    "dashboard"
+  ],
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/decodeswapnil/docker-snooze.git"
+  },
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "express": "^4.21.2",
+    "jsonwebtoken": "^9.0.3",
+    "node-cron": "^3.0.3",
+    "qrcode": "^1.5.4",
+    "sql.js": "^1.14.1"
+  }
+}

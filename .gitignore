@@ -1,0 +1,27 @@
+# Data & Auth
+data/
+*.db
+
+# Logs
+*.log
+
+# Node.js
+node_modules/
+npm-debug.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+
+# Environment
+.env
+.env.local
+
+# Ad-hoc dev scripts & internal planning notes
+test-auth.js
+test-totp.js
+*.resolved
