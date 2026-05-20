@@ -1,0 +1,386 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DOCKER SNOOZE — Autonomous Resource Controller</title>
+  <meta name="description" content="Futuristic Docker Compose project lifecycle manager with intelligent snooze scheduling" />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;700&family=Orbitron:wght@400;600;700;900&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="index.css" />
+</head>
+<body>
+  <!-- ── Auth Overlay ───────────────────────────────────────── -->
+  <div class="auth-overlay hidden" id="auth-overlay">
+    <div class="bg-grid"></div>
+    <div class="bg-orbs">
+      <div class="orb orb-1"></div>
+      <div class="orb orb-2"></div>
+      <div class="orb orb-3"></div>
+    </div>
+    
+    <div class="auth-card" id="auth-card">
+      <div class="logo auth-logo">
+        <span class="logo-icon">⬡</span>
+        <div class="logo-text">
+          <span class="logo-title">DOCKER SNOOZE</span>
+          <span class="logo-sub">SYSTEM AUTHENTICATION</span>
+        </div>
+      </div>
+
+      <!-- Setup Form -->
+      <div id="auth-setup-view" class="hidden">
+        <h3 class="auth-title">INITIAL SETUP</h3>
+        <p class="auth-desc">Create a password and configure your authenticator app.</p>
+        
+        <div class="form-group">
+          <label class="form-label">NEW PASSWORD</label>
+          <input type="password" class="form-input" id="setup-password" placeholder="Minimum 6 characters" />
+        </div>
+
+        <button class="btn-primary full-width" id="btn-generate-totp">GENERATE QR CODE</button>
+        
+        <div id="setup-qr-section" class="hidden">
+          <div class="qr-container">
+            <img id="setup-qr-img" src="" alt="QR Code" />
+          </div>
+          <p class="auth-desc">Scan this code with Google Authenticator, Authy, or Apple Passwords.</p>
+          
+          <div class="form-group">
+            <label class="form-label">VERIFY CODE</label>
+            <input type="text" class="form-input text-center" id="setup-totp-code" placeholder="000000" maxlength="6" autocomplete="off" />
+          </div>
+          <button class="btn-primary full-width" id="btn-verify-setup">FINALIZE SETUP</button>
+        </div>
+      </div>
+
+      <!-- Login Form -->
+      <div id="auth-login-view" class="hidden">
+        <h3 class="auth-title">AUTHORIZATION REQUIRED</h3>
+        <p class="auth-desc">Please enter your password OR authenticator passkey to access the system.</p>
+        
+        <div class="form-group">
+          <label class="form-label">PASSWORD</label>
+          <input type="password" class="form-input" id="login-password" placeholder="Enter password" />
+        </div>
+        
+        <div class="auth-divider">
+          <span>OR</span>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">AUTHENTICATOR PASSKEY</label>
+          <input type="text" class="form-input text-center" id="login-totp-code" placeholder="000000" maxlength="6" autocomplete="off" />
+        </div>
+        
+        <button class="btn-primary full-width" id="btn-login">LOGIN</button>
+      </div>
+
+      <div class="auth-error hidden" id="auth-error-msg"></div>
+    </div>
+  </div>
+
+  <div id="app-container" class="hidden">
+
+  <!-- ── Ambient Background ─────────────────────────────────── -->
+  <div class="bg-grid"></div>
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+  </div>
+
+  <!-- ── Header ─────────────────────────────────────────────── -->
+  <header class="header">
+    <div class="header-left">
+      <div class="logo">
+        <span class="logo-icon">⬡</span>
+        <div class="logo-text">
+          <span class="logo-title">DOCKER SNOOZE</span>
+          <span class="logo-sub">AUTONOMOUS RESOURCE CONTROLLER</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-center">
+      <div class="status-bar">
+        <div class="stat-chip" id="stat-running">
+          <span class="stat-dot running"></span>
+          <span class="stat-val" id="stat-running-val">—</span>
+          <span class="stat-label">ONLINE</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-chip" id="stat-stopped">
+          <span class="stat-dot stopped"></span>
+          <span class="stat-val" id="stat-stopped-val">—</span>
+          <span class="stat-label">SNOOZED</span>
+        </div>
+        <div class="stat-divider"></div>
+        <div class="stat-chip">
+          <span class="stat-dot schedule"></span>
+          <span class="stat-val" id="stat-schedules-val">—</span>
+          <span class="stat-label">SCHEDULED</span>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <div class="system-time" id="system-time"></div>
+      <button class="btn-add" id="btn-add-project" title="Register new project">
+        <span class="btn-add-icon">+</span>
+        <span>ADD PROJECT</span>
+      </button>
+      <button class="btn-logout" id="btn-logout" title="Logout">
+        <span>⏻</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ── Main Content ────────────────────────────────────────── -->
+  <main class="main">
+
+    <!-- Projects Grid -->
+    <section class="section">
+      <div class="section-header">
+        <h2 class="section-title">MANAGED PROJECTS</h2>
+        <div class="section-line"></div>
+        <span class="section-badge" id="project-count">0 PROJECTS</span>
+      </div>
+      <div class="projects-grid" id="projects-grid">
+        <div class="empty-state" id="empty-state">
+          <div class="empty-icon">⬡</div>
+          <p class="empty-title">NO PROJECTS REGISTERED</p>
+          <p class="empty-sub">Add a Docker Compose project to begin resource management</p>
+          <button class="btn-primary" onclick="document.getElementById('btn-add-project').click()">REGISTER PROJECT</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- System Monitor -->
+    <section class="section system-monitor-section">
+      <div class="section-header">
+        <h2 class="section-title">SYSTEM MONITOR</h2>
+        <div class="section-line"></div>
+      </div>
+      <div class="monitor-grid">
+        <div class="monitor-card">
+          <div class="mc-header">
+            <span class="mc-title">CPU USAGE</span>
+            <span class="mc-val" id="sys-cpu-val">--%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="sys-cpu-fill" style="width: 0%"></div>
+          </div>
+          <div class="mc-footer" id="sys-cpu-footer">-- Cores</div>
+        </div>
+
+        <div class="monitor-card">
+          <div class="mc-header">
+            <span class="mc-title">MEMORY</span>
+            <span class="mc-val" id="sys-mem-val">--%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="sys-mem-fill" style="width: 0%"></div>
+          </div>
+          <div class="mc-footer" id="sys-mem-footer">-- / -- GB</div>
+        </div>
+
+        <div class="monitor-card">
+          <div class="mc-header">
+            <span class="mc-title">DISK I/O</span>
+            <span class="mc-val" id="sys-disk-val">--%</span>
+          </div>
+          <div class="progress-bar">
+            <div class="progress-fill" id="sys-disk-fill" style="width: 0%"></div>
+          </div>
+          <div class="mc-footer" id="sys-disk-footer">-- / -- GB</div>
+        </div>
+      </div>
+      <div class="top-processes" id="top-processes">
+        <!-- populated via JS -->
+      </div>
+    </section>
+
+    <!-- Activity Log -->
+    <section class="section log-section">
+      <div class="section-header">
+        <h2 class="section-title">ACTIVITY LOG</h2>
+        <div class="section-line"></div>
+        <button class="btn-ghost" id="btn-refresh-logs">↻ REFRESH</button>
+      </div>
+      <div class="log-container" id="log-container">
+        <div class="log-empty">No activity recorded yet</div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <!-- ── MODAL: Add Project ─────────────────────────────────── -->
+  <!-- ════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay hidden" id="modal-add-project">
+    <div class="modal">
+      <div class="modal-header">
+        <h3 class="modal-title">REGISTER PROJECT</h3>
+        <button class="modal-close" data-close="modal-add-project">✕</button>
+      </div>
+      <div class="modal-body">
+        <div class="form-group">
+          <label class="form-label">PROJECT NAME</label>
+          <input type="text" class="form-input" id="input-project-name" placeholder="e.g. affiliate-platform" />
+        </div>
+        <div class="form-group">
+          <label class="form-label">COMPOSE FILE PATH</label>
+          <input type="text" class="form-input" id="input-compose-path" placeholder="/absolute/path/to/docker-compose.yml" />
+          <p class="form-hint">Absolute path to your docker-compose.yml file</p>
+        </div>
+        <div class="quick-paths" id="quick-paths">
+          <p class="form-label">QUICK FILL</p>
+          <div class="quick-path-chips" id="quick-path-chips">
+            <!-- populated by JS -->
+          </div>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" data-close="modal-add-project">CANCEL</button>
+        <button class="btn-primary" id="btn-confirm-add-project">REGISTER</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <!-- ── MODAL: Manage Schedules ────────────────────────────── -->
+  <!-- ════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay hidden" id="modal-schedules">
+    <div class="modal modal-lg">
+      <div class="modal-header">
+        <div>
+          <h3 class="modal-title">MANAGE SCHEDULES</h3>
+          <p class="modal-subtitle" id="modal-schedules-project-name">—</p>
+        </div>
+        <button class="modal-close" data-close="modal-schedules">✕</button>
+      </div>
+      <div class="modal-body">
+
+        <!-- New schedule form -->
+        <div class="schedule-form-card">
+          <h4 class="card-section-title">NEW SCHEDULE</h4>
+
+          <!-- Action picker -->
+          <div class="form-group">
+            <label class="form-label">ACTION</label>
+            <div class="action-picker" id="action-picker">
+              <button class="action-btn active" data-action="snooze">
+                <span class="action-icon">😴</span>
+                <span>SNOOZE</span>
+                <span class="action-desc">Stop containers</span>
+              </button>
+              <button class="action-btn" data-action="unsnooze">
+                <span class="action-icon">⚡</span>
+                <span>UNSNOOZE</span>
+                <span class="action-desc">Start containers</span>
+              </button>
+            </div>
+          </div>
+
+          <!-- Time picker row -->
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">TIME</label>
+              <div class="time-picker" id="time-picker">
+                <div class="time-wheel-wrap">
+                  <button class="wheel-arrow up" data-wheel="hour" data-dir="up">▲</button>
+                  <div class="wheel-display" id="wheel-hour">01</div>
+                  <button class="wheel-arrow down" data-wheel="hour" data-dir="down">▼</button>
+                </div>
+                <div class="time-colon">:</div>
+                <div class="time-wheel-wrap">
+                  <button class="wheel-arrow up" data-wheel="minute" data-dir="up">▲</button>
+                  <div class="wheel-display" id="wheel-minute">00</div>
+                  <button class="wheel-arrow down" data-wheel="minute" data-dir="down">▼</button>
+                </div>
+              </div>
+            </div>
+
+            <!-- Recurrence picker -->
+            <div class="form-group flex-1">
+              <label class="form-label">RECURRENCE</label>
+              <div class="recurrence-tabs" id="recurrence-tabs">
+                <button class="rec-tab active" data-rec="daily">DAILY</button>
+                <button class="rec-tab" data-rec="weekdays">WEEKDAYS</button>
+                <button class="rec-tab" data-rec="weekends">WEEKENDS</button>
+                <button class="rec-tab" data-rec="custom">CUSTOM</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- Day picker (custom mode) -->
+          <div class="form-group hidden" id="day-picker-group">
+            <label class="form-label">DAYS</label>
+            <div class="day-chips">
+              <button class="day-chip active" data-day="1">MON</button>
+              <button class="day-chip active" data-day="2">TUE</button>
+              <button class="day-chip active" data-day="3">WED</button>
+              <button class="day-chip active" data-day="4">THU</button>
+              <button class="day-chip active" data-day="5">FRI</button>
+              <button class="day-chip" data-day="6">SAT</button>
+              <button class="day-chip" data-day="0">SUN</button>
+            </div>
+          </div>
+
+          <!-- Cron preview -->
+          <div class="cron-preview">
+            <span class="cron-label">CRON:</span>
+            <code class="cron-value" id="cron-preview">0 1 * * *</code>
+            <span class="cron-human" id="cron-human">Every day at 01:00</span>
+          </div>
+
+          <!-- Description -->
+          <div class="form-group">
+            <label class="form-label">LABEL <span class="form-optional">(optional)</span></label>
+            <input type="text" class="form-input" id="input-schedule-desc" placeholder="e.g. Nightly shutdown" />
+          </div>
+
+          <div class="modal-footer-inline">
+            <button class="btn-primary full-width" id="btn-add-schedule">+ ADD SCHEDULE</button>
+          </div>
+        </div>
+
+        <!-- Existing schedules list -->
+        <div class="schedules-list-section">
+          <h4 class="card-section-title">ACTIVE SCHEDULES</h4>
+          <div id="schedules-list" class="schedules-list">
+            <div class="schedule-empty">No schedules configured for this project</div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════ -->
+  <!-- ── MODAL: Confirm Action ──────────────────────────────── -->
+  <!-- ════════════════════════════════════════════════════════ -->
+  <div class="modal-overlay hidden" id="modal-confirm">
+    <div class="modal modal-sm">
+      <div class="modal-header">
+        <h3 class="modal-title" id="confirm-title">CONFIRM ACTION</h3>
+        <button class="modal-close" data-close="modal-confirm">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="confirm-message" id="confirm-message"></p>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-ghost" data-close="modal-confirm">CANCEL</button>
+        <button class="btn-danger" id="btn-confirm-action">CONFIRM</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Toast ───────────────────────────────────────────────── -->
+  <div class="toast-container" id="toast-container"></div>
+
+  </div> <!-- /app-container -->
+
+  <script src="app.js"></script>
+</body>
+</html>
